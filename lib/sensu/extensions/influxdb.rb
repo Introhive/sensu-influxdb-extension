@@ -120,7 +120,8 @@ module Sensu::Extension
         measurement = event['check']['name'] if event['check']['name']
         output.split(/\r\n|\n/).each do |point|
           if not handler["proxy_mode"]
-            buckets, field_value, timestamp = point.scan(/'([^']+)'|"([^"]+)"|(\S+)/).flatten.compact
+            buckets, field_value, timestamp, statsd_tags = point.scan(/'([^']+)'|"([^"]+)"|(\S+)/).flatten.compact
+            statsd_tags = statsd_tags ? extract_statsd_tags(statsd_tags) : {}
 
             # Accept string fields
             string_fields = []
@@ -136,17 +137,6 @@ module Sensu::Extension
             if not is_number?(timestamp)
               @logger.debug("invalid timestamp, skipping line in event #{event}")
               next
-            end
-
-            # Get event output tags
-            if buckets.include?('eventtags')
-              only_measurement, tagstub = buckets.split('.eventtags.',2)
-              event_tags = Hash.new()
-              tagstub.split('.').each_slice(2) do |key, value|
-                event_tags[key] = value
-              end
-              measurement = only_measurement
-              tags = create_tags(client_tags.merge(check_tags).merge(event_tags))
             end
 
             # output formats by measurements
@@ -208,6 +198,9 @@ module Sensu::Extension
             else
               custom_tags['metric'] = measurement
             end
+
+            # Merge if this point set have statsd tags
+            custom_tags = custom_tags.merge(statsd_tags)
 
             # Check already tags present in point set.
             tags_timestamp_match = false
@@ -330,6 +323,16 @@ module Sensu::Extension
         end
       end
       return custom_format
+    end
+
+    def extract_statsd_tags(statsd_tags)
+      statsd_tags.split(',').reduce({}) { |all_tags, datagram_tag|
+        k,v = datagram_tag.split(':')
+        k.gsub!(' ', '\ ')
+        v.gsub!(' ', '\ ')
+        all_tags[k] = v
+        all_tags
+      }
     end
 
     def symbolize(obj)

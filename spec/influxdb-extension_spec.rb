@@ -689,6 +689,77 @@ describe "Sensu::Extension::InfluxDB" do
     expect(buffer[1]).to eq("random,hive=hive active_users=2.0 1480697845")
   end
 
+  it "Accept statsd tags" do
+    event = {
+      "client" => {
+        "name" => "rspec"
+      },
+      "check" => {
+        "name" => "random",
+        "output" => "statsd.gauges.g1 1.0 1480697845 \"t1:2,t2:str\"\nstatsd.gauges.g2 2.0 1480697845",
+      }
+    }
+
+    @extension.run(event.to_json) do end
+
+    buffer = @extension.instance_variable_get("@handlers")["influxdb-extension"]["buffer"]
+    expect(buffer[0]).to eq("random,t1=2,t2=str statsd.gauges.g1=1.0 1480697845")
+    expect(buffer[1]).to eq("random statsd.gauges.g2=2.0 1480697845")
+  end
+
+  it "Metrics are grouped by statsd tags" do
+    event = {
+      "client" => {
+        "name" => "rspec"
+      },
+      "check" => {
+        "name" => "random",
+        "output" => "statsd.gauges.g1 1.0 1480697845 \"t1:2,t2:str\"\nstatsd.gauges.g2 2.0 1480697845 \"t1:2,t2:str\"\nstatsd.gauges.g2 2.0 1480697845",
+      }
+    }
+
+    @extension.run(event.to_json) do end
+
+    buffer = @extension.instance_variable_get("@handlers")["influxdb-extension"]["buffer"]
+    expect(buffer[0]).to eq("random,t1=2,t2=str statsd.gauges.g1=1.0,statsd.gauges.g2=2.0 1480697845")
+    expect(buffer[1]).to eq("random statsd.gauges.g2=2.0 1480697845")
+  end
+
+  it "Metrics are grouped by statsd tags & metric tags as well" do
+    event = {
+      "client" => {
+        "name" => "rspec"
+      },
+      "check" => {
+        "name" => "random",
+        "output" => "statsd.gauges.v1.g1 1.0 1480697845\nstatsd.gauges.g2 2.0 1480697845 \"t1:v1\"",
+        "influxdb" => {"output_formats" => ['_._.t1.metric']}
+      }
+    }
+
+    @extension.run(event.to_json) do end
+
+    buffer = @extension.instance_variable_get("@handlers")["influxdb-extension"]["buffer"]
+    expect(buffer[0]).to eq("random,t1=v1 g1=1.0,statsd.gauges.g2=2.0 1480697845")
+  end
+
+  it "Escape space in statsd tags" do
+    event = {
+      "client" => {
+        "name" => "rspec"
+      },
+      "check" => {
+        "name" => "random",
+        "output" => "statsd.gauges.g1 1.0 1480697845 \"key with space:2,t2:value with space\"",
+      }
+    }
+
+    @extension.run(event.to_json) do end
+
+    buffer = @extension.instance_variable_get("@handlers")["influxdb-extension"]["buffer"]
+    expect(buffer[0]).to eq("random,key\\ with\\ space=2,t2=value\\ with\\ space statsd.gauges.g1=1.0 1480697845")
+  end
+
   it "does not modify input in proxy mode" do
     @extension.run(minimal_event_proxy.to_json) do end
 
