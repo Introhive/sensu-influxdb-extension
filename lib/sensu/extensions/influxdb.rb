@@ -328,6 +328,8 @@ module Sensu::Extension
     def extract_statsd_tags(statsd_tags)
       statsd_tags.split(',').reduce({}) { |all_tags, datagram_tag|
         k,v = datagram_tag.split(':')
+        k.gsub!(' ', '\ ')
+        v.gsub!(' ', '\ ')
         all_tags[k] = v
         all_tags
       }
