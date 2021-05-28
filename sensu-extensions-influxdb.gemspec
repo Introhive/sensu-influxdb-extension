@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |spec|
   spec.name          = "sensu-extensions-influxdb"
-  spec.version       = "2.1.0"
+  spec.version       = "3.2.0"
   spec.license       = "MIT"
   spec.authors       = ["Johnny Horvi", "Terje Sannum"]
   spec.email         = ["johnny@horvi.no", "terje@offpiste.org"]
@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "sensu-extension"
 
-  spec.add_development_dependency "bundler", "~> 1.6"
+  spec.add_development_dependency 'bundler', '>= 2.2.10'
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"
   spec.add_development_dependency "sensu-logger"
